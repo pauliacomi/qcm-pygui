@@ -24,8 +24,8 @@ class Chart():
         self.plot = self.figure.add_subplot(111)
         self.plot.autoscale(True)
 
-        self.maxt = 500
-        self.changet = 20
+        self.maxt = 6000
+        self.changet = 300
 
         self.xdata = []
         self.ydata = []

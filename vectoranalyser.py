@@ -13,7 +13,7 @@ class VectorAnalyser:
         self.q = None
         self.triggerEvent = None
 
-        self.fp_marker = open("./markers.txt", 'a')
+        self.fp_marker = open("./markers.csv", 'a')
 
     def query(self):
         try:
@@ -48,8 +48,8 @@ class VectorAnalyser:
         self.instr.write_str("INIT:CONT:ALL OFF")
 
         # freq range
-        self.instr.write_str("SENS1:FREQ:START 9.9MHZ")
-        self.instr.write_str("SENS1:FREQ:STOP 10.05MHZ")
+        self.instr.write_str("SENS1:FREQ:START 9.92MHZ")
+        self.instr.write_str("SENS1:FREQ:STOP 10.01MHZ")
 
         # sweep settings
         self.instr.write_str("SENS1:SWE:TIME:AUTO On")
@@ -62,13 +62,12 @@ class VectorAnalyser:
         self.instr.write_str("DISP:WIND2:STAT ON")
         self.instr.write_str("DISP:WIND2:TRAC1:FEED 'Linear'")
 
-        self.instr.write_str("DISP:WIND1:TRAC1:Y:SCAL:AUTO ONCE")
-        self.instr.write_str("DISP:WIND2:TRAC1:Y:SCAL:AUTO ONCE")
-
-        # self.instr.write_str("CALC1:PAR:SEL 'Trc1'")
-
         # do one measurement for reference vals
         self.instr.write_str("INIT1:IMM; *WAI")
+        
+        # now scale
+        self.instr.write_str("DISP:WIND1:TRAC1:Y:SCAL:AUTO ONCE")
+        self.instr.write_str("DISP:WIND2:TRAC1:Y:SCAL:AUTO ONCE")
 
         # markers
         self.instr.write_str("CALC1:MARK1:STAT ON")
@@ -118,9 +117,6 @@ class VectorAnalyser:
                 sys.exit()
 
             if self.threadMeasureBool:
-
-                # # Measure
-                # self.instr.write_str("INIT1:IMM; *WAI")
 
                 # Update screen
                 self.instr.write_str("SYSTem:DISPlay:UPDate ONCE")
