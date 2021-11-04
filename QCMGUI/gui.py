@@ -226,9 +226,9 @@ class MainWindow(ttk.Frame):
     ##################
 
     def on_timer(self):
-        self.plot_trace.canvas.draw()
-        self.plot_mark.canvas.draw()
-        self.after(500, self.on_timer)
+        self.plot_trace.update_plot()
+        self.plot_mark.update_plot()
+        self.after(1000, self.on_timer)
 
     def about(self):
         tkMessageBox.showinfo(
@@ -338,11 +338,11 @@ class MainWindow(ttk.Frame):
             )
 
     def set_trace(self, x: Iterable = None, y: Iterable = None):
-        self.plot_trace.update(x, y)
+        self.plot_trace.set_data(x, y)
 
     def add_mark(self, value=None):
         x, y = value
-        self.plot_mark.update(x, y)
+        self.plot_mark.append_data(x, y)
 
 
 ##################
