@@ -128,13 +128,25 @@ class TraceChart(Chart):
     """
     def __init__(self, parent, xlabel=None, ylabel=None, *args, **kwargs):
         super().__init__(parent, xlabel=None, ylabel=None, *args, **kwargs)
+        self.markx = [0, 0]
+        self.marky = [-100, 100]
+        self.markline = Line2D(self.markx, self.marky, color='r', linewidth=1)
+        self.plot.add_line(self.markline)
+        self.add_artist(self.markline)
 
     def set_data(self, x: Iterable, y: Iterable):
         self.xdata = x
         self.ydata = y
         self.line.set_data(self.xdata, self.ydata)
         self.plot.set_xlim(self.xdata[0], self.xdata[-1])
-        self.plot.set_ylim(0.9 * min(self.ydata), 1.1 * max(self.ydata))
+
+        mn = min(self.ydata)
+        mx = max(self.ydata)
+        self.plot.set_ylim(1.1 * mn, 0.9 * mx)
+
+        xmx = x[y.index(mx)]
+        self.markx = [xmx, xmx]
+        self.markline.set_data(self.markx, self.marky)
 
 
 class MarkerChart(Chart):

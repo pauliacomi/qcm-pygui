@@ -4,6 +4,7 @@ import datetime as dt
 import threading
 
 import pyvisa
+from pyvisa.util import from_ascii_block
 
 
 class VectorAnalyser():
@@ -148,8 +149,14 @@ class VectorAnalyser():
                     })
                 )
 
-                # # Read trace
-                trace = self.instrument.query_ascii_values("TRACE:DATA?")
+                # Read trace
+                # With Rigol the instrument returns a header
+                # which denotes the data length.
+                # We remove this before passing it to pyVISA routines
+                self.instrument.write('TRAC:DATA? TRACE1')
+                data = self.instrument.read()
+                data = data[12:]
+                trace = from_ascii_block(data)
                 stat = list(range(len(trace)))
                 # stim = self.instrument.query_ascii_values("CALC:DATA:STIM?")
                 self.queue.put(
