@@ -56,3 +56,26 @@ instr.close()
 instr.write('CALC:DATA? TRACE1')
 data = instr.read_raw()
 # %%
+instr.query("CALC:MARK1:X?")
+# %%
+instr.write('CALC:MARK:FCOunt:STATe ON')
+# %%
+instr.write('CALC:MARK:FCOunt:STATe OFF')
+# %%
+instr.query('CALC:MARK:FCOunt:X?')
+
+# %%
+instr.query('CALC:MARK:FCOunt:STATe?')
+
+# %%
+
+from datetime import datetime, timedelta
+# %%
+now = datetime.now()
+tenmin = [now + timedelta(minutes=t) for t in range(10)]
+# %%
+fiveago = tenmin[-1] - timedelta(minutes=4.9)
+# %%
+tenmin[fiveago:]
+
+# %%
