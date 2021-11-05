@@ -127,7 +127,7 @@ class TraceChart(Chart):
     """Class to represent a single graphic representation of data.
     """
     def __init__(self, parent, xlabel=None, ylabel=None, *args, **kwargs):
-        super().__init__(parent, xlabel=None, ylabel=None, *args, **kwargs)
+        super().__init__(parent, xlabel=xlabel, ylabel=ylabel, *args, **kwargs)
         self.markx = [0, 0]
         self.marky = [-100, 100]
         self.markline = Line2D(self.markx, self.marky, color='r', linewidth=1)
@@ -142,9 +142,12 @@ class TraceChart(Chart):
 
         mn = min(self.ydata)
         mx = max(self.ydata)
-        self.plot.set_ylim(1.1 * mn, 0.9 * mx)
-
         xmx = x[y.index(mx)]
+
+        mn = 1.1 * mn if mn < 0 else 0.9 * mn
+        mx = 0.9 * mx if mx < 0 else 1.1 * mx
+        self.plot.set_ylim(mn, mx)
+
         self.markx = [xmx, xmx]
         self.markline.set_data(self.markx, self.marky)
 
@@ -153,32 +156,48 @@ class MarkerChart(Chart):
     """Class to represent a single graphic representation of data.
     """
     def __init__(self, parent, xlabel=None, ylabel=None, *args, **kwargs):
-        super().__init__(parent, *args, **kwargs)
+        super().__init__(parent, xlabel=xlabel, ylabel=ylabel, *args, **kwargs)
 
-        self.maxt = 10  # max displayed in minutes
-        self.changet = 300
+        self.maxt = 300  # total store time in minutes
+        self.dispt = 60  # max display time in minutes
+        self.displast = None  # where last point is displayed
 
         self.miny = 9975000
         self.maxy = 10010000
 
+        self.plot.set_xlim(0, 0.005)
         self.plot.set_ylim(self.miny, self.maxy)
-        self.plot.xaxis.set_major_locator(mdates.MinuteLocator(interval=1))
+        self.plot.xaxis.set_major_locator(mdates.MinuteLocator(interval=10))
         self.plot.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
 
     def append_data(self, x: datetime, y: float):
 
         if self.xdata:
-            last = self.xdata[-1]
             first = self.xdata[0]
+            last = self.xdata[-1]
             dtime = (last - first).seconds / 60
-            if dtime > self.maxt:  # reset the arrays
-                self.xdata = self.xdata[self.changet:]
-                self.ydata = self.ydata[self.changet:]
-                self.plot.set_xlim(
-                    self.xdata[0], self.xdata[0] + self.maxt + self.changet
+
+            if dtime > self.maxt:  # cut a third of the arrays
+
+                cut = int(len(self.xdata) / 3)
+                self.xdata = self.xdata[cut:]
+                self.ydata = self.ydata[cut:]
+
+            last = self.xdata[-1]
+            first = self.displast
+            dtime = (last - first).seconds / 60
+            if dtime > self.dispt:  # rescale display
+                self.displast = self.displast + timedelta(
+                    minutes=self.dispt / 2
                 )
+                self.plot.set_xlim(
+                    self.displast,
+                    self.displast + timedelta(minutes=self.dispt)
+                )
+
         else:
-            self.plot.set_xlim(x, x + timedelta(minutes=self.maxt))
+            self.displast = x
+            self.plot.set_xlim(x, x + timedelta(minutes=self.dispt))
 
         self.xdata.append(x)
         self.ydata.append(y)

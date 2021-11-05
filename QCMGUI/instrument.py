@@ -1,21 +1,23 @@
-import pathlib
-import time
 import datetime as dt
+import pathlib
 import threading
+import time
 
+import numpy as np
 import pyvisa
 from pyvisa.util import from_ascii_block
 
 
-class VectorAnalyser():
+class VISAInstrument():
     def __init__(self, dfolder: pathlib.Path):
-
         # references to command queue
         self.queue = None
         self.queueEvent = None
         self.quitEvent = None
 
         # file paths and pointers
+        if not dfolder.exists():
+            dfolder.mkdir()
         self.fp_marker = open(dfolder / "markers.csv", 'a')
         self.f_traces = dfolder / "traces"
         if not self.f_traces.exists():
@@ -33,6 +35,7 @@ class VectorAnalyser():
             )
 
         # setup measurement thread
+        self.reftime = None
         self.threadMeasure = threading.Thread(target=self.measure, daemon=True)
         self.threadMeasureBool = False
         self.threadRecordBool = False
@@ -87,107 +90,8 @@ class VectorAnalyser():
         self.instrument.visa_timeout = 3000
         self.log(f"Connected to {self.instrument.query('*IDN?')}")
 
-    def configure(self):
-        """Configure the connected instrument."""
-        if not self.instrument:
-            self.log('Not connected to any instrument.')
-
-        # reset everything
-        self.instrument.write("*RST")
-
-        # turn off measurement
-        self.instrument.write("INIT:CONT OFF")
-
-        # tracking generator
-        self.instrument.write("OUTP:STAT ON")
-
-        # freq range
-        self.instrument.write("SENS:FREQ:START 9.92MHZ")
-        self.instrument.write("SENS:FREQ:STOP 10.03MHZ")
-
-        # sweep settings
-        self.instrument.write("SENS:SWE:TIME:AUTO ON")
-        self.instrument.write("SENS:SWE:POIN 3001")
-
-        # markers
-        self.instrument.write("CALC:MARK1:STAT ON")
-        self.instrument.write("CALC:MARK1:CPEak:STATe ON")
-
-        # turn on continuous measurement
-        self.instrument.write("INIT:CONT ON")
-
-        # TODO display enable/disable?
-        # TODO marker points
-
-        # done
-        self.log("Configuration complete.")
-
     def measure(self):
-        """
-        Perform measurements on the connected instrument.
-        This function is designed to be called from a thread.
-        """
-        while True:
-            # Exit if needed
-            if self.quitEvent and self.quitEvent.is_set():
-                print("Exiting VA measurement thread.")
-                break
-
-            if self.threadMeasureBool:
-
-                # Update screen
-                # self.instrument.write("SYSTem:DISPlay:UPDate ONCE")
-
-                # Read marker
-                mark = self.instrument.query("CALC:MARK1:X?")
-                mark = float(mark)
-                timenow = dt.datetime.now()
-                self.queue.put(
-                    ('disp', {
-                        'task': 'add_mark',
-                        'value': (timenow, mark)
-                    })
-                )
-
-                # Read trace
-                # With Rigol the instrument returns a header
-                # which denotes the data length.
-                # We remove this before passing it to pyVISA routines
-                self.instrument.write('TRAC:DATA? TRACE1')
-                data = self.instrument.read()
-                data = data[12:]
-                trace = from_ascii_block(data)
-                stat = list(range(len(trace)))
-                # stim = self.instrument.query_ascii_values("CALC:DATA:STIM?")
-                self.queue.put(
-                    ('disp', {
-                        'task': 'set_trace',
-                        'x': stat,
-                        'y': trace,
-                    })
-                )
-
-                # save if recording
-                if self.threadRecordBool:
-                    # Save marker
-                    self.fp_marker.write(f"{timenow},{mark}\n")
-
-                    # Save trace every X seconds
-                    if (timenow - self.reftime).seconds > 60:
-                        self.reftime = timenow
-                        filename = str(timenow).replace(':', '') + ".csv"
-                        with open(self.f_traces / filename, 'w') as f:
-                            f.writelines(
-                                map(
-                                    lambda x: f"{x[0]},{x[1]}\n",
-                                    zip(stim, trace)
-                                )
-                            )
-
-                self.queueEvent.set()
-
-            # Wait for required time
-            time.sleep(0.5)
+        pass
 
     ##################
     #### Control receive
@@ -235,9 +139,126 @@ class VectorAnalyser():
         print("Vector analyser closed.")
 
 
+class DSA_815(VISAInstrument):
+    def __init__(self, dfolder: pathlib.Path):
+        super().__init__(dfolder=dfolder)
+        self.frange = None
+
+    def configure(self, start=9.92e6, stop=10.02e6):
+        """Configure the connected instrument."""
+        if not self.instrument:
+            self.log('Not connected to any instrument.')
+
+        # reset everything
+        self.instrument.write("*RST")
+
+        # turn off measurement
+        self.instrument.write("INIT:CONT OFF")
+
+        # tracking generator
+        self.instrument.write("OUTP:STAT ON")
+
+        # freq range
+        self.instrument.write(f"SENS:FREQ:START {start}")
+        self.instrument.write(f"SENS:FREQ:STOP {stop}")
+
+        # sweep settings
+        self.instrument.write("SENS:BAND:RES 1KHZ")  # RBW 1 kHz
+        self.instrument.write("SENS:BAND:VID 1MHZ")  # VBW 1 MHz
+        self.instrument.write("SENS:DET:FUNC RMS")  # DET type RMS avg
+        self.instrument.write("SENS:SWE:TIME:AUTO:RULES ACCURACY")
+        self.instrument.write("SENS:SWE:TIME:AUTO ON")
+
+        # scaling
+        self.instrument.write("INIT:IMM; *WAI")  # measurement for reference
+        self.instrument.write("DISP:WIN:TRAC:Y:SCALe:SPACing LIN")
+        self.instrument.write("SENS:POWer:ASCale")
+
+        # markers
+        self.instrument.write("CALC:MARK1:STAT ON")
+        self.instrument.write("CALC:MARK1:CPEak:STATe ON")
+
+        # counter?
+        # self.instrument.write('CALC:MARK:FCOunt:STATe ON')
+
+        # query step length
+        steps = int(self.instrument.query(":SENSe:SWEep:POINts?"))
+
+        self.frange = np.linspace(start, stop, steps)
+
+        # turn on continuous measurement
+        self.instrument.write("INIT:CONT ON")
+
+        # done
+        self.log("Configuration complete.")
+
+    def measure(self):
+        """
+        Perform measurements on the connected instrument.
+        This function is designed to be called from a thread.
+        """
+        while True:
+            # Exit if needed
+            if self.quitEvent and self.quitEvent.is_set():
+                print("Exiting VA measurement thread.")
+                break
+
+            if self.threadMeasureBool:
+
+                # Read marker
+                mark = self.instrument.query("CALC:MARK1:X?")
+                # mark = self.instrument.query('CALC:MARK:FCOunt:X?')
+                mark = float(mark)
+                timenow = dt.datetime.now()
+                self.queue.put(
+                    ('disp', {
+                        'task': 'add_mark',
+                        'value': (timenow, mark)
+                    })
+                )
+
+                # Read trace
+                # With Rigol the instrument returns a header
+                # which denotes the data length.
+                # We remove this before passing it to pyVISA routines
+                self.instrument.write('TRAC:DATA? TRACE1')
+                data = self.instrument.read()
+                data = data[12:]
+                trace = from_ascii_block(data)
+                self.queue.put((
+                    'disp', {
+                        'task': 'set_trace',
+                        'x': self.frange,
+                        'y': trace,
+                    }
+                ))
+
+                self.queueEvent.set()
+
+                # save if recording
+                if self.threadRecordBool:
+                    # Save marker
+                    self.fp_marker.write(f"{timenow},{mark}\n")
+
+                    # Save trace every X seconds
+                    if (timenow - self.reftime).seconds > 60:
+                        self.reftime = timenow
+                        filename = str(timenow).replace(':', '') + ".csv"
+                        with open(self.f_traces / filename, 'w') as f:
+                            f.writelines(
+                                map(
+                                    lambda x: f"{x[0]},{x[1]}\n",
+                                    zip(self.frange, trace)
+                                )
+                            )
+
+            # Wait for required time
+            time.sleep(0.5)
+
+
 if __name__ == '__main__':
 
     print("Direct control.")
-    va = VectorAnalyser()
+    va = DSA_815()
     va.connect()
     print(va.measure())

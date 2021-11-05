@@ -1,5 +1,5 @@
 @ECHO OFF
 @ECHO Starting QCM/VA control
 call conda activate ./venv
-python ./gui.py
+python ./QCMGUI
 call conda deactivate

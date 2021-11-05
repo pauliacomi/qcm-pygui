@@ -42,7 +42,6 @@ class MainWindow(ttk.Frame):
         self.recording = False
         self.configure_window()
         self.create_layout()
-        self.on_timer()
 
     ##################
     #### GUI config
@@ -225,11 +224,6 @@ class MainWindow(ttk.Frame):
     #### Gui callbacks
     ##################
 
-    def on_timer(self):
-        self.plot_trace.update_plot()
-        self.plot_mark.update_plot()
-        self.after(1000, self.on_timer)
-
     def about(self):
         tkMessageBox.showinfo(
             'About', "Record QCM over Ethernet using pyVISA \nPaul Iacomi 2021"
@@ -308,6 +302,10 @@ class MainWindow(ttk.Frame):
         self.queue.put(('ctrl', {'task': 'query_instruments'}))
         self.queueEvent.set()
 
+    def task_update_charts(self):
+        self.queue.put(('disp', {'task': 'update_chart'}))
+        self.after(1000, self.task_update_charts)
+
     ##################
     #### Control receive
     ##################
@@ -323,6 +321,7 @@ class MainWindow(ttk.Frame):
         self.queueEvent = queue_event
         self.quitEvent = quit_event
         self.task_query_instruments()
+        self.task_update_charts()
 
     def set_instruments(self, instruments):
         self.instruments = instruments
@@ -343,6 +342,10 @@ class MainWindow(ttk.Frame):
     def add_mark(self, value=None):
         x, y = value
         self.plot_mark.append_data(x, y)
+
+    def update_chart(self):
+        self.plot_trace.update_plot()
+        self.plot_mark.update_plot()
 
 
 ##################

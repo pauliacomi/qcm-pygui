@@ -47,7 +47,6 @@ class MainController(threading.Thread):
     def run(self):
         while True:
             self.queueEvent.wait()  # blocked in waiting
-            print("woke up")
 
             # Below what happens if event triggered
             if self.quitEvent.is_set():
@@ -57,7 +56,6 @@ class MainController(threading.Thread):
 
             while not self.queue.empty():
                 job, kwargs = self.queue.get()
-                print(job, kwargs.get('task'))
 
                 try:
                     if job == 'ctrl':
