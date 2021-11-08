@@ -150,6 +150,7 @@ class DSA_815(VISAInstrument):
             self.log('Not connected to any instrument.')
 
         # reset everything
+        self.instrument.visa_timeout = 30000
         self.instrument.write("*RST")
 
         # turn off measurement
@@ -206,51 +207,65 @@ class DSA_815(VISAInstrument):
             if self.threadMeasureBool:
 
                 # Read marker
-                mark = self.instrument.query("CALC:MARK1:X?")
-                # mark = self.instrument.query('CALC:MARK:FCOunt:X?')
-                mark = float(mark)
-                timenow = dt.datetime.now()
-                self.queue.put(
-                    ('disp', {
-                        'task': 'add_mark',
-                        'value': (timenow, mark)
-                    })
-                )
+                mark = None
+                try:
+                    mark = self.instrument.query("CALC:MARK1:X?")
+                    # mark = self.instrument.query('CALC:MARK:FCOunt:X?')
+                except pyvisa.errors.VisaIOError as e:
+                    self.log(f"Could not read marker. Error: {e}")
+                if mark:
+                    mark = float(mark)
+                    timenow = dt.datetime.now()
+                    self.queue.put((
+                        'disp', {
+                            'task': 'add_mark',
+                            'value': (timenow, mark)
+                        }
+                    ))
 
                 # Read trace
                 # With Rigol the instrument returns a header
                 # which denotes the data length.
                 # We remove this before passing it to pyVISA routines
-                self.instrument.write('TRAC:DATA? TRACE1')
-                data = self.instrument.read()
-                data = data[12:]
-                trace = from_ascii_block(data)
-                self.queue.put((
-                    'disp', {
-                        'task': 'set_trace',
-                        'x': self.frange,
-                        'y': trace,
-                    }
-                ))
+                data = None
+                try:
+                    self.instrument.write('TRAC:DATA? TRACE1')
+                    data = self.instrument.read()
+                except pyvisa.errors.VisaIOError as e:
+                    self.log(f"Could not read marker. Error: {e}")
+                if data:
+                    data = data[12:]
+                    trace = from_ascii_block(data)
+                    self.queue.put((
+                        'disp', {
+                            'task': 'set_trace',
+                            'x': self.frange,
+                            'y': trace,
+                        }
+                    ))
 
+                # inform read
                 self.queueEvent.set()
 
                 # save if recording
                 if self.threadRecordBool:
+
                     # Save marker
-                    self.fp_marker.write(f"{timenow},{mark}\n")
+                    if mark:
+                        self.fp_marker.write(f"{timenow},{mark}\n")
 
                     # Save trace every X seconds
-                    if (timenow - self.reftime).seconds > 60:
-                        self.reftime = timenow
-                        filename = str(timenow).replace(':', '') + ".csv"
-                        with open(self.f_traces / filename, 'w') as f:
-                            f.writelines(
-                                map(
-                                    lambda x: f"{x[0]},{x[1]}\n",
-                                    zip(self.frange, trace)
+                    if trace:
+                        if (timenow - self.reftime).seconds > 60:
+                            self.reftime = timenow
+                            filename = str(timenow).replace(':', '') + ".csv"
+                            with open(self.f_traces / filename, 'w') as f:
+                                f.writelines(
+                                    map(
+                                        lambda x: f"{x[0]},{x[1]}\n",
+                                        zip(self.frange, trace)
+                                    )
                                 )
-                            )
 
             # Wait for required time
             time.sleep(0.5)
