@@ -8,13 +8,13 @@ from instrument import DSA_815
 
 wd = pathlib.Path(__file__).parent.parent
 cfile = wd / "settings.cfg"
-dfolder = wd / "data"
 sfolder = wd / "QCMGUI"
 
 
 def main():
 
     conf = Config(cfile)
+    dfolder = wd / conf.get("data_folder")
 
     root = tk.Tk()
     app = MainWindow(root, conf, sfolder)

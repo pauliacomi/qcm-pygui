@@ -3,6 +3,7 @@ class Config():
         self.file = cfg_file
         self.sett = {
             "instrument": "TCPIP::127.0.0.1::HISLIP",
+            "data_folder": "current_data",
         }
         self.load(self.file)
 
