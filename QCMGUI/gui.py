@@ -304,6 +304,7 @@ class MainWindow(ttk.Frame):
 
     def task_update_charts(self):
         self.queue.put(('disp', {'task': 'update_chart'}))
+        self.queueEvent.set()
         self.after(1000, self.task_update_charts)
 
     ##################
@@ -344,8 +345,9 @@ class MainWindow(ttk.Frame):
         self.plot_mark.append_data(x, y)
 
     def update_chart(self):
-        self.plot_trace.update_plot()
-        self.plot_mark.update_plot()
+        pass
+        # self.plot_trace.update_plot()
+        # self.plot_mark.update_plot()
 
 
 ##################
