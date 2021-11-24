@@ -50,7 +50,7 @@ class MainWindow(ttk.Frame):
     def configure_window(self):
 
         top = self.winfo_toplevel()
-        top.geometry('700x900+100+100')
+        top.geometry('700x800+100+100')
 
         self.parent.title("QCM controller")
         self.parent.protocol('WM_DELETE_WINDOW', self.signal_close)
@@ -67,7 +67,7 @@ class MainWindow(ttk.Frame):
         #    row 1 = control buttons
         #    row 2 = graphs etc - expandable
         #    row 3 = output
-        #    row 4 = input
+        #    row 4 = ipt_visa
         self.rowconfigure(0, weight=0)
         self.rowconfigure(1, weight=0)
         self.rowconfigure(2, weight=2)
@@ -107,58 +107,52 @@ class MainWindow(ttk.Frame):
         self.ctrl_row.grid(row=row, column=0)
 
         self.lbl_instr = tk.Label(self.ctrl_row)
-        self.lbl_instr["text"] = "Instruments:"
-        self.lbl_instr.grid(
-            column=0, row=0, sticky=tk.NW, padx=PADX, pady=PADY, ipadx=10
-        )
+        self.lbl_instr["text"] = "Instrument:"
+        self.lbl_instr.grid(column=0, row=0, sticky=tk.NW, padx=PADX, pady=PADY, ipadx=10)
 
-        self.edt_instr = tk.OptionMenu(
-            self.ctrl_row, self.instrument, *self.instruments
-        )
+        self.edt_instr = tk.OptionMenu(self.ctrl_row, self.instrument, *self.instruments)
         self.edt_instr.configure(anchor='w')
-        self.edt_instr.grid(
-            column=1,
-            row=0,
-            columnspan=3,
-            sticky=tk.NW,
-            padx=PADX,
-            pady=PADY,
-            ipadx=10
-        )
+        self.edt_instr.grid(column=1, row=0, columnspan=3, sticky=tk.NW, padx=PADX, pady=PADY, ipadx=10)
 
         self.btn_connect = ttk.Button(self.ctrl_row)
         self.btn_connect["text"] = "Connect"
         self.btn_connect["command"] = self.task_connect
-        self.btn_connect.grid(
-            column=4, row=0, sticky=tk.NW, padx=PADX, pady=PADY, ipadx=10
-        )
+        self.btn_connect.grid(column=3, row=0, sticky=tk.NW, padx=PADX, pady=PADY, ipadx=10)
 
-        self.lbl_instr = tk.Label(self.ctrl_row)
-        self.lbl_instr["text"] = "Commands:"
-        self.lbl_instr.grid(
-            column=0, row=1, sticky=tk.NW, padx=PADX, pady=PADY, ipadx=10
-        )
+        #
+
+        self.lbl_setup = tk.Label(self.ctrl_row)
+        self.lbl_setup["text"] = "Setup:"
+        self.lbl_setup.grid(column=0, row=1, sticky=tk.NW, padx=PADX, pady=PADY, ipadx=10)
+
+        self.ipt_start = tk.Entry(self.ctrl_row, width=10)
+        self.ipt_start.insert(0, self.config.get('start'))
+        self.ipt_start.grid(column=1, row=1, sticky=tk.NW, padx=PADX, pady=PADY, ipadx=10)
+
+        self.ipt_stop = tk.Entry(self.ctrl_row, width=10)
+        self.ipt_stop.insert(0, self.config.get('stop'))
+        self.ipt_stop.grid(column=2, row=1, sticky=tk.NW, padx=PADX, pady=PADY, ipadx=10)
 
         self.btn_running = ttk.Button(self.ctrl_row)
         self.btn_running["text"] = "Prime"
         self.btn_running["command"] = self.task_configure
-        self.btn_running.grid(
-            column=2, row=1, sticky=tk.NW, padx=PADX, pady=PADY, ipadx=10
-        )
+        self.btn_running.grid(column=3, row=1, sticky=tk.NW, padx=PADX, pady=PADY, ipadx=10)
+
+        #
+
+        self.lbl_run = tk.Label(self.ctrl_row)
+        self.lbl_run["text"] = "Acquisition:"
+        self.lbl_run.grid(column=0, row=2, sticky=tk.NW, padx=PADX, pady=PADY, ipadx=10)
 
         self.btn_acquire = ttk.Button(self.ctrl_row)
         self.btn_acquire["text"] = "Read Start"
         self.btn_acquire["command"] = self.task_toggle_read
-        self.btn_acquire.grid(
-            column=3, row=1, sticky=tk.NW, padx=PADX, pady=PADY, ipadx=10
-        )
+        self.btn_acquire.grid(column=1, row=2, sticky=tk.NW, padx=PADX, pady=PADY, ipadx=10)
 
         self.btn_record = ttk.Button(self.ctrl_row)
         self.btn_record["text"] = "Record Start"
         self.btn_record["command"] = self.task_toggle_record
-        self.btn_record.grid(
-            column=4, row=1, sticky=tk.NW, padx=PADX, pady=PADY, ipadx=10
-        )
+        self.btn_record.grid(column=2, row=2, sticky=tk.NW, padx=PADX, pady=PADY, ipadx=10)
 
     def create_graph(self, row):
         """Graphs row."""
@@ -208,16 +202,12 @@ class MainWindow(ttk.Frame):
         self.input_row = ttk.Frame(self)
         self.input_row.grid(row=row, column=0, sticky=tk.NSEW)
 
-        self.input = tk.Entry(self.input_row)
-        self.input.grid(
-            row=0, column=0, columnspan=1, pady=PADY, padx=PADX, sticky=NWE
-        )
+        self.ipt_visa = tk.Entry(self.input_row)
+        self.ipt_visa.grid(row=0, column=0, columnspan=1, pady=PADY, padx=PADX, sticky=NWE)
         self.btn_input = ttk.Button(self.input_row)
         self.btn_input["text"] = "Send command"
         self.btn_input["command"] = self.send_command
-        self.btn_input.grid(
-            row=0, column=1, sticky=tk.SW, padx=PADX, pady=PADY, ipadx=10
-        )
+        self.btn_input.grid(row=0, column=1, sticky=tk.SW, padx=PADX, pady=PADY, ipadx=10)
         self.input_row.columnconfigure(0, weight=1)
 
     ##################
@@ -225,9 +215,7 @@ class MainWindow(ttk.Frame):
     ##################
 
     def about(self):
-        tkMessageBox.showinfo(
-            'About', "Record QCM over Ethernet using pyVISA \nPaul Iacomi 2021"
-        )
+        tkMessageBox.showinfo('About', "Record QCM over Ethernet using pyVISA \nPaul Iacomi 2021")
 
     def close(self):
         print("Window asked to close.")
@@ -245,8 +233,8 @@ class MainWindow(ttk.Frame):
     ##################
 
     def send_command(self, *args, **kwargs):
-        cmd = self.input.get()
-        self.input.delete(0, tk.END)
+        cmd = self.ipt_visa.get()
+        self.ipt_visa.delete(0, tk.END)
 
         self.queue.put(('ctrl', {'task': 'run_cmd', 'cmd': cmd}))
         self.queueEvent.set()
@@ -254,7 +242,11 @@ class MainWindow(ttk.Frame):
         self.log(f"Command sent: \"{cmd}\".")
 
     def task_configure(self):
-        self.queue.put(('ctrl', {'task': 'configure'}))
+        start = float(self.ipt_start.get())
+        stop = float(self.ipt_stop.get())
+        self.config.set('start', start)
+        self.config.set('stop', stop)
+        self.queue.put(('ctrl', {'task': 'configure', 'start': start, 'stop': stop}))
         self.queueEvent.set()
 
     def task_connect(self):
@@ -333,9 +325,7 @@ class MainWindow(ttk.Frame):
 
         # Insert list of new options (tk._setit hooks them up to var)
         for choice in self.instruments:
-            self.edt_instr['menu'].add_command(
-                label=choice, command=tk._setit(self.instrument, choice)
-            )
+            self.edt_instr['menu'].add_command(label=choice, command=tk._setit(self.instrument, choice))
 
     def set_trace(self, x: Iterable = None, y: Iterable = None):
         self.plot_trace.set_data(x, y)
@@ -345,9 +335,8 @@ class MainWindow(ttk.Frame):
         self.plot_mark.append_data(x, y)
 
     def update_chart(self):
-        pass
-        # self.plot_trace.update_plot()
-        # self.plot_mark.update_plot()
+        self.plot_trace.update_plot()
+        self.plot_mark.update_plot()
 
 
 ##################

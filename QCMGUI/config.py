@@ -4,11 +4,13 @@ class Config():
         self.sett = {
             "instrument": "TCPIP::127.0.0.1::HISLIP",
             "data_folder": "current_data",
+            "start": 9920000,
+            "stop": 10020000,
         }
         self.load(self.file)
 
     def get(self, key):
-        return self.sett[key]
+        return self.sett.get(key, None)
 
     def set(self, key, val):
         self.sett[key] = val
