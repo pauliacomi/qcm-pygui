@@ -150,7 +150,7 @@ class DSA_815(VISAInstrument):
             self.log('Not connected to any instrument.')
 
         # reset everything
-        self.instrument.visa_timeout = 30000
+        self.instrument.timeout = 30000
         self.instrument.write("*RST")
 
         # turn off measurement
