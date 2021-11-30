@@ -179,8 +179,9 @@ class DSA_815(VISAInstrument):
         self.instrument.write("CALC:MARK1:STAT ON")
         self.instrument.write("CALC:MARK1:CPEak:STATe ON")
 
-        # counter?
-        # self.instrument.write('CALC:MARK:FCOunt:STATe ON')
+        # freq counter
+        self.instrument.write('CALC:MARK:FCOunt:STATe ON')
+        self.instrument.write('CALC:MARK:FCOunt:RESolution 1HZ')
 
         # query step length
         steps = int(self.instrument.query(":SENSe:SWEep:POINts?"))
@@ -210,7 +211,7 @@ class DSA_815(VISAInstrument):
                 mark = None
                 try:
                     mark = self.instrument.query("CALC:MARK1:X?")
-                    # mark = self.instrument.query('CALC:MARK:FCOunt:X?')
+        	    # mark = self.instrument.query('CALC:MARK:FCOunt:X?')
                 except pyvisa.errors.VisaIOError as e:
                     self.log(f"Could not read marker. Error: {e}")
                 if mark:
