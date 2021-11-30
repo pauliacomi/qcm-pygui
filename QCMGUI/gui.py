@@ -70,7 +70,7 @@ class MainWindow(ttk.Frame):
         #    row 4 = ipt_visa
         self.rowconfigure(0, weight=0)
         self.rowconfigure(1, weight=0)
-        self.rowconfigure(2, weight=2)
+        self.rowconfigure(2, weight=3)
         self.rowconfigure(3, weight=2)
         self.rowconfigure(4, weight=0)
 
@@ -112,7 +112,7 @@ class MainWindow(ttk.Frame):
 
         self.edt_instr = tk.OptionMenu(self.ctrl_row, self.instrument, *self.instruments)
         self.edt_instr.configure(anchor='w')
-        self.edt_instr.grid(column=1, row=0, columnspan=3, sticky=tk.NW, padx=PADX, pady=PADY, ipadx=10)
+        self.edt_instr.grid(column=1, row=0, columnspan=2, sticky=tk.NW, padx=PADX, pady=PADY, ipadx=10)
 
         self.btn_connect = ttk.Button(self.ctrl_row)
         self.btn_connect["text"] = "Connect"
@@ -174,6 +174,10 @@ class MainWindow(ttk.Frame):
             self.chart_row,
             xlabel="Time",
             ylabel="Frequency [Hz]",
+        )
+        self.plot_mark.set_ylim(
+            miny=float(self.config.get('start')),
+            maxy=float(self.config.get('stop')),
         )
         self.plot_mark.grid(row=2, column=0, sticky=tk.NSEW)
 
@@ -246,6 +250,7 @@ class MainWindow(ttk.Frame):
         stop = float(self.ipt_stop.get())
         self.config.set('start', start)
         self.config.set('stop', stop)
+        self.plot_mark.set_ylim(start, stop)
         self.queue.put(('ctrl', {'task': 'configure', 'start': start, 'stop': stop}))
         self.queueEvent.set()
 
