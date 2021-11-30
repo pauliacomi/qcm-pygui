@@ -161,13 +161,13 @@ class MarkerChart(Chart):
         self.displast = None  # where last point is displayed
 
         self.plot.set_xlim(0, 0.005)
-        self.plot.set_ylim(self.miny, self.maxy)
         self.plot.xaxis.set_major_locator(mdates.MinuteLocator(interval=10))
         self.plot.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
 
     def set_ylim(self, miny=9975000, maxy=10010000):
         self.miny = miny
         self.maxy = maxy
+        self.plot.set_ylim(self.miny, self.maxy)
 
     def append_data(self, x: datetime, y: float):
 
