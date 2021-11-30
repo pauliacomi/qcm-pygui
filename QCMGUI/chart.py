@@ -6,9 +6,7 @@ from matplotlib import style
 
 style.use("fast")
 
-from matplotlib.backends.backend_tkagg import (
-    FigureCanvasTkAgg, NavigationToolbar2Tk
-)
+from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg, NavigationToolbar2Tk)
 from matplotlib.figure import Figure
 from matplotlib.lines import Line2D
 import matplotlib.dates as mdates
@@ -162,13 +160,14 @@ class MarkerChart(Chart):
         self.dispt = 60  # max display time in minutes
         self.displast = None  # where last point is displayed
 
-        self.miny = 9975000
-        self.maxy = 10010000
-
         self.plot.set_xlim(0, 0.005)
         self.plot.set_ylim(self.miny, self.maxy)
         self.plot.xaxis.set_major_locator(mdates.MinuteLocator(interval=10))
         self.plot.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+
+    def set_ylim(self, miny=9975000, maxy=10010000):
+        self.miny = miny
+        self.maxy = maxy
 
     def append_data(self, x: datetime, y: float):
 
@@ -187,13 +186,8 @@ class MarkerChart(Chart):
             first = self.displast
             dtime = (last - first).seconds / 60
             if dtime > self.dispt:  # rescale display
-                self.displast = self.displast + timedelta(
-                    minutes=self.dispt / 2
-                )
-                self.plot.set_xlim(
-                    self.displast,
-                    self.displast + timedelta(minutes=self.dispt)
-                )
+                self.displast = self.displast + timedelta(minutes=self.dispt / 2)
+                self.plot.set_xlim(self.displast, self.displast + timedelta(minutes=self.dispt))
 
         else:
             self.displast = x
