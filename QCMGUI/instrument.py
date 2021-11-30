@@ -29,10 +29,7 @@ class VISAInstrument():
         try:
             self.rm = pyvisa.ResourceManager()
         except OSError:
-            self.log(
-                "Could not find a VISA library. "
-                "Please install a VI library (NI-VISA, R&S VISA, etc.)."
-            )
+            self.log("Could not find a VISA library. Please install a VI library (NI-VISA, R&S VISA, etc.).")
 
         # setup measurement thread
         self.reftime = None
@@ -48,23 +45,16 @@ class VISAInstrument():
         try:
             instruments = self.rm.list_resources("?*")
             instruments = instruments + ("Simulation", )
-            self.queue.put((
-                'disp', {
-                    'task': 'set_instruments',
-                    'instruments': instruments
-                }
-            ))
+            self.queue.put(('disp', {
+                'task': 'set_instruments',
+                'instruments': instruments,
+            }))
         except ValueError:
-            self.log(
-                "Could not find a VISA resource. "
-                "Switching to simulated connection."
-            )
-            self.queue.put((
-                'disp', {
-                    'task': 'set_instruments',
-                    'instruments': ("Simulation", )
-                }
-            ))
+            self.log("Could not find a VISA resource. Switching to simulated connection.")
+            self.queue.put(('disp', {
+                'task': 'set_instruments',
+                'instruments': ("Simulation", ),
+            }))
 
     def connect(self, instrument='TCPIP::127.0.0.1::HISLIP'):
         """Connect to a specified instrument string."""
@@ -81,13 +71,14 @@ class VISAInstrument():
         else:
             try:
                 self.instrument = self.rm.open_resource(
-                    instrument, read_termination='\n'
+                    instrument,
+                    read_termination='\n',
                 )
             except Exception as e:
                 self.log(f'Unexpected connection error {repr(e)}.')
                 self.log(e.args[0])
 
-        self.instrument.visa_timeout = 3000
+        self.instrument.timeout = 3000
         self.log(f"Connected to {self.instrument.query('*IDN?')}")
 
     def measure(self):
@@ -211,17 +202,18 @@ class DSA_815(VISAInstrument):
                 mark = None
                 try:
                     mark = self.instrument.query("CALC:MARK1:X?")
-        	    # mark = self.instrument.query('CALC:MARK:FCOunt:X?')
+        # mark = self.instrument.query('CALC:MARK:FCOunt:X?')
                 except pyvisa.errors.VisaIOError as e:
                     self.log(f"Could not read marker. Error: {e}")
                 if mark:
                     mark = float(mark)
                     timenow = dt.datetime.now()
                     self.queue.put((
-                        'disp', {
+                        'disp',
+                        {
                             'task': 'add_mark',
                             'value': (timenow, mark)
-                        }
+                        },
                     ))
 
                 # Read trace
@@ -238,11 +230,12 @@ class DSA_815(VISAInstrument):
                     data = data[12:]
                     trace = from_ascii_block(data)
                     self.queue.put((
-                        'disp', {
+                        'disp',
+                        {
                             'task': 'set_trace',
                             'x': self.frange,
                             'y': trace,
-                        }
+                        },
                     ))
 
                 # inform read
@@ -261,12 +254,10 @@ class DSA_815(VISAInstrument):
                             self.reftime = timenow
                             filename = str(timenow).replace(':', '') + ".csv"
                             with open(self.f_traces / filename, 'w') as f:
-                                f.writelines(
-                                    map(
-                                        lambda x: f"{x[0]},{x[1]}\n",
-                                        zip(self.frange, trace)
-                                    )
-                                )
+                                f.writelines(map(
+                                    lambda x: f"{x[0]},{x[1]}\n",
+                                    zip(self.frange, trace),
+                                ))
 
             # Wait for required time
             time.sleep(0.5)
