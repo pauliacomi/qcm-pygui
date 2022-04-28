@@ -1,3 +1,6 @@
+"""
+OLD, unused class for connection to Rohde&Schwartz analyser.
+"""
 import time
 import sys
 import datetime as dt
@@ -11,7 +14,7 @@ class VectorAnalyser:
     def __init__(self):
         self.instr = None
         self.q = None
-        self.queueEvent = None
+        self.queue_event = None
 
         self.fp_marker = open("./markers.csv", 'a')
 
@@ -19,9 +22,7 @@ class VectorAnalyser:
         try:
             self.log(rsi.RsInstrument.list_resources("?*"))
         except ValueError:
-            self.log(
-                "Could not find a VISA implementation. Switching to simulated connection."
-            )
+            self.log("Could not find a VISA implementation. Switching to simulated connection.")
 
     def connect(self, ip='127.0.0.1'):
         try:
@@ -31,9 +32,7 @@ class VectorAnalyser:
                 True,
             )
         except ValueError:
-            self.instr = rsi.RsInstrument(
-                f'TCPIP::{ip}::HISLIP', True, True, "Simulate=True"
-            )
+            self.instr = rsi.RsInstrument(f'TCPIP::{ip}::HISLIP', True, True, "Simulate=True")
         except rsi.ResourceError as e:
             self.log(e.args[0])
             self.log('Your instrument is probably OFF...')
@@ -83,13 +82,13 @@ class VectorAnalyser:
         self.instr.write_str("SYST:DISP:UPD ONCE")
 
         # threaded events
-        self.threadMeasureBool = False
-        self.threadRecordBool = False
-        self.threadMeasure = threading.Thread(target=self.measure, daemon=True)
+        self.thread_measure_flag = False
+        self.thread_record_flag = False
+        self.thread_measure = threading.Thread(target=self.measure, daemon=True)
 
         self.exitEvent = threading.Event()
         atexit.register(self.exitEvent.set)
-        self.threadMeasure.start()
+        self.thread_measure.start()
 
         # time deltas
         self.reftime = dt.datetime.now()
@@ -98,16 +97,16 @@ class VectorAnalyser:
         self.log("Configuration complete.")
 
     def start_measure(self):
-        self.threadMeasureBool = True
+        self.thread_measure_flag = True
 
     def stop_measure(self):
-        self.threadMeasureBool = False
+        self.thread_measure_flag = False
 
     def start_record(self):
-        self.threadRecordBool = True
+        self.thread_record_flag = True
 
     def stop_record(self):
-        self.threadRecordBool = False
+        self.thread_record_flag = False
 
     def measure(self):
         while True:
@@ -116,7 +115,7 @@ class VectorAnalyser:
                 print("exiting")
                 sys.exit()
 
-            if self.threadMeasureBool:
+            if self.thread_measure_flag:
 
                 # Update screen
                 self.instr.write_str("SYSTem:DISPlay:UPDate ONCE")
@@ -126,22 +125,16 @@ class VectorAnalyser:
                 self.q.put(('disp', {'task': 'get_mark', 'value': mark}))
 
                 # Read trace
-                trace = self.instr.query_bin_or_ascii_float_list(
-                    "CALC1:DATA? FDAT"
-                )
-                stim = self.instr.query_bin_or_ascii_float_list(
-                    "CALC1:DATA:STIM?"
-                )
-                self.q.put(
-                    ('disp', {
-                        'task': 'get_trace',
-                        'x': stim,
-                        'y': trace,
-                    })
-                )
+                trace = self.instr.query_bin_or_ascii_float_list("CALC1:DATA? FDAT")
+                stim = self.instr.query_bin_or_ascii_float_list("CALC1:DATA:STIM?")
+                self.q.put(('disp', {
+                    'task': 'get_trace',
+                    'x': stim,
+                    'y': trace,
+                }))
 
                 # save if recording
-                if self.threadRecordBool:
+                if self.thread_record_flag:
                     # Save marker
                     now = dt.datetime.now()
                     self.fp_marker.write(f"{now},{mark}\n")
@@ -151,25 +144,20 @@ class VectorAnalyser:
                         self.reftime = now
                         filename = str(now).replace(':', '')
                         with open(f"./traces/{filename}.csv", 'w') as f:
-                            f.writelines(
-                                map(
-                                    lambda x: f"{x[0]},{x[1]}\n",
-                                    zip(stim, trace)
-                                )
-                            )
+                            f.writelines(map(lambda x: f"{x[0]},{x[1]}\n", zip(stim, trace)))
 
-                self.queueEvent.set()
+                self.queue_event.set()
 
             # Wait for required time
             time.sleep(0.5)
 
     def set_trigger(self, trigger=None, q=None):
-        self.queueEvent = trigger
+        self.queue_event = trigger
         self.q = q
 
     def log(self, msg):
         self.q.put(('disp', {'task': 'log', 'value': msg}))
-        self.queueEvent.set()
+        self.queue_event.set()
 
     def run_cmd(self, cmd):
         self.instr.write_str(cmd)

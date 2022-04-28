@@ -1,4 +1,11 @@
+"""
+Configuration and settings for the program.
+Loaded into memory and stored in a configuration file.
+"""
+
+
 class Config():
+    """A simple config class."""
     def __init__(self, cfg_file='settings.cfg'):
         self.file = cfg_file
         self.sett = {
@@ -10,14 +17,17 @@ class Config():
         self.load(self.file)
 
     def get(self, key):
+        """Get a setting value."""
         return self.sett.get(key, None)
 
     def set(self, key, val):
+        """Set a setting value."""
         self.sett[key] = val
 
     def load(self, cfg_file):
+        """Load settings file from disk."""
         try:
-            for line in open(cfg_file):
+            for line in open(cfg_file, encoding="utf8"):
                 line = line.strip()
                 if not line or line.startswith('#'):
                     continue
@@ -32,6 +42,7 @@ class Config():
             pass
 
     def save(self):
-        with open(self.file, 'w') as fp:
+        """Save settings file from disk."""
+        with open(self.file, 'w', encoding="utf8") as fp:
             for key, val in self.sett.items():
                 fp.write(f"{key} = {val}\n")

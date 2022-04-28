@@ -1,3 +1,7 @@
+"""
+All graphs needed for the live display of recorded QCM data.
+"""
+
 import tkinter as tk
 from datetime import datetime, timedelta
 from typing import Iterable
@@ -13,29 +17,34 @@ import matplotlib.dates as mdates
 
 
 class VerticalNavigationToolbar2Tk(NavigationToolbar2Tk):
+    """Overridden regular toolbar to make it vertical."""
     def __init__(self, canvas, window):
         super().__init__(canvas, window, pack_toolbar=False)
 
-    # override _Button() to re-pack the toolbar button in vertical direction
     def _Button(self, text, image_file, toggle, command):
+        """override _Button() to re-pack the toolbar button in vertical direction"""
         b = super()._Button(text, image_file, toggle, command)
         b.pack(side=tk.TOP)  # re-pack button in vertical direction
         return b
 
-    # override _Spacer() to create vertical separator
     def _Spacer(self):
+        """# override _Spacer() to create vertical separator"""
         s = tk.Frame(self, width=26, relief=tk.RIDGE, bg="DarkGray", padx=2)
         s.pack(side=tk.TOP, pady=5)  # pack in vertical direction
         return s
 
-    # disable showing mouse position in toolbar
     def set_message(self, s):
+        """disable showing mouse position in toolbar"""
         pass
 
 
 class Chart(tk.Frame):
-    def __init__(self, parent, xlabel=None, ylabel=None, *args, **kwargs):
-
+    """Base chart class from tk.Frame with MPL graph and toolbar."""
+    def __init__(self, parent, *args, xlabel=None, ylabel=None, **kwargs):
+        """
+        Initialize the chart.
+        Names for the labels are parameters.
+        """
         # init frame
         super().__init__(parent, *args, **kwargs)
 
@@ -98,7 +107,7 @@ class Chart(tk.Frame):
             fig.draw_artist(a)
 
     def update_plot(self):
-
+        """Update the plot through blitting."""
         cv = self.canvas
         fig = self.figure
         # paranoia in case we missed the draw event,
@@ -115,17 +124,20 @@ class Chart(tk.Frame):
         cv.flush_events()
 
     def set_data(self, x: Iterable, y: Iterable):
-        pass
+        """Set all data. To be overridden in various sublasses."""
 
     def append_data(self, x: datetime, y: float):
-        pass
+        """Append point to existing data. To be overridden in various sublasses."""
 
 
 class TraceChart(Chart):
-    """Class to represent a single graphic representation of data.
-    """
-    def __init__(self, parent, xlabel=None, ylabel=None, *args, **kwargs):
-        super().__init__(parent, xlabel=xlabel, ylabel=ylabel, *args, **kwargs)
+    """Class to represent a single graphic representation of frequency scan data."""
+    def __init__(self, parent, *args, xlabel=None, ylabel=None, **kwargs):
+        """
+        Initialize the chart.
+        Names for the labels are parameters.
+        """
+        super().__init__(parent, *args, xlabel=xlabel, ylabel=ylabel, **kwargs)
         self.markx = [0, 0]
         self.marky = [-100, 100]
         self.markline = Line2D(self.markx, self.marky, color='r', linewidth=1)
@@ -133,6 +145,7 @@ class TraceChart(Chart):
         self.add_artist(self.markline)
 
     def set_data(self, x: Iterable, y: Iterable):
+        """Take in all data from a sweep and save it."""
         self.xdata = x
         self.ydata = y
         self.line.set_data(self.xdata, self.ydata)
@@ -151,26 +164,32 @@ class TraceChart(Chart):
 
 
 class MarkerChart(Chart):
-    """Class to represent a single graphic representation of data.
-    """
-    def __init__(self, parent, xlabel=None, ylabel=None, *args, **kwargs):
-        super().__init__(parent, xlabel=xlabel, ylabel=ylabel, *args, **kwargs)
+    """Class to represent a single graphic representation of resonance frequency in time."""
+    def __init__(self, parent, *args, xlabel=None, ylabel=None, **kwargs):
+        super().__init__(parent, *args, xlabel=xlabel, ylabel=ylabel, **kwargs)
+        """
+        Initialize the chart.
+        Names for the labels are parameters.
+        """
 
         self.maxt = 300  # total store time in minutes
         self.dispt = 60  # max display time in minutes
         self.displast = None  # where last point is displayed
+        self.miny = 9975000  # default minimum frequency on y scale
+        self.maxy = 10010000  # default maximum frequency on y scale
 
         self.plot.set_xlim(0, 0.005)
         self.plot.xaxis.set_major_locator(mdates.MinuteLocator(interval=10))
         self.plot.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
 
     def set_ylim(self, miny=9975000, maxy=10010000):
+        """Set the graph frequency limits."""
         self.miny = miny
         self.maxy = maxy
         self.plot.set_ylim(self.miny, self.maxy)
 
     def append_data(self, x: datetime, y: float):
-
+        """Append the new frequency max to all measurements."""
         if self.xdata:
             first = self.xdata[0]
             last = self.xdata[-1]

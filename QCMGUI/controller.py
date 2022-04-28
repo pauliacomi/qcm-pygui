@@ -1,3 +1,6 @@
+"""
+The controller class which executes read/write functions in a separate thread. 
+"""
 import atexit
 import queue
 import sys
@@ -23,36 +26,37 @@ class MainController(threading.Thread):
         self.queue = queue.Queue(maxsize=10)
 
         # event will be triggered to process queue
-        self.queueEvent = threading.Event()
+        self.queue_event = threading.Event()
 
         # event will be triggered at exit to graceful close
-        self.quitEvent = threading.Event()
-        atexit.register(self.quitEvent.set)
-        atexit.register(self.queueEvent.set)
+        self.quit_event = threading.Event()
+        atexit.register(self.quit_event.set)
+        atexit.register(self.queue_event.set)
 
         # connect model/app
         self.model = model
         self.model.set_trigger(
             queue=self.queue,
-            queue_event=self.queueEvent,
-            quit_event=self.quitEvent,
+            queue_event=self.queue_event,
+            quit_event=self.quit_event,
         )
         self.app = app
         self.app.set_trigger(
             queue=self.queue,
-            queue_event=self.queueEvent,
-            quit_event=self.quitEvent,
+            queue_event=self.queue_event,
+            quit_event=self.quit_event,
         )
 
     def run(self):
+        """Main event loop."""
         while True:
-            self.queueEvent.wait()  # blocked in waiting
+            self.queue_event.wait()  # blocked in waiting
 
             # Below what happens if event triggered
-            if self.quitEvent.is_set():
+            if self.quit_event.is_set():
                 self.close()
 
-            self.queueEvent.clear()
+            self.queue_event.clear()
 
             while not self.queue.empty():
                 job, kwargs = self.queue.get()
@@ -72,18 +76,20 @@ class MainController(threading.Thread):
 
                 try:
                     func(**kwargs)
-                except Exception as e:
+                except Exception as err:
                     traceback.print_exc()
                     self.log(
-                        f"Error caught -> {repr(e)} while running '{job}' with parameters '{kwargs}'"
+                        f"Error caught -> {repr(err)} while running '{job}' with parameters '{kwargs}'"
                     )
-                    self.log(e)
+                    self.log(err)
 
     def log(self, msg):
+        """Self-add a log to the queue."""
         self.queue.put(('disp', {'task': 'log', 'value': msg}))
-        self.queueEvent.set()
+        self.queue_event.set()
 
     def close(self):
+        """Call exit on all components then exit thread."""
         for item in (self.model, self.app):
             try:
                 item.close()

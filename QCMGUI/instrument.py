@@ -1,3 +1,7 @@
+"""
+Class that abstracts interaction with the VISA instrument.
+"""
+
 import datetime as dt
 import pathlib
 import threading
@@ -9,16 +13,20 @@ from pyvisa.util import from_ascii_block
 
 
 class VISAInstrument():
+    """
+    Abstract instrument class that communicates with the VISA instrument.
+    Needs subclassing for each instrument class.
+    """
     def __init__(self, dfolder: pathlib.Path):
         # references to command queue
         self.queue = None
-        self.queueEvent = None
-        self.quitEvent = None
+        self.queue_event = None
+        self.quit_event = None
 
         # file paths and pointers
         if not dfolder.exists():
             dfolder.mkdir()
-        self.fp_marker = open(dfolder / "markers.csv", 'a')
+        self.fp_marker = open(dfolder / "markers.csv", 'a', encoding="utf8")
         self.f_traces = dfolder / "traces"
         if not self.f_traces.exists():
             self.f_traces.mkdir()
@@ -29,17 +37,19 @@ class VISAInstrument():
         try:
             self.rm = pyvisa.ResourceManager()
         except OSError:
-            self.log("Could not find a VISA library. Please install a VI library (NI-VISA, R&S VISA, etc.).")
+            self.log(
+                "Could not find a VISA library. Please install a VI library (NI-VISA, R&S VISA, etc.)."
+            )
 
         # setup measurement thread
         self.reftime = None
-        self.threadMeasure = threading.Thread(target=self.measure, daemon=True)
-        self.threadMeasureBool = False
-        self.threadRecordBool = False
-        self.threadMeasure.start()
+        self.thread_measure = threading.Thread(target=self.measure, daemon=True)
+        self.thread_measure_flag = False
+        self.thread_record_flag = False
+        self.thread_measure.start()
 
     def query_instruments(self):
-        """Get the available instruments."""
+        """Get all available instruments."""
         if not self.rm:
             return
         try:
@@ -82,55 +92,63 @@ class VISAInstrument():
         self.log(f"Connected to {self.instrument.query('*IDN?')}")
 
     def measure(self):
-        pass
+        """Perform measurement. Should be implemented in subclasses."""
 
     ##################
     #### Control receive
     ##################
 
     def log(self, msg):
+        """Send log message to queue."""
         self.queue.put(('disp', {'task': 'log', 'value': msg}))
-        self.queueEvent.set()
+        self.queue_event.set()
 
     def set_trigger(self, queue=None, queue_event=None, quit_event=None):
+        """Start-up actions."""
         self.queue = queue
-        self.queueEvent = queue_event
-        self.quitEvent = quit_event
+        self.queue_event = queue_event
+        self.quit_event = quit_event
 
     def run_cmd(self, cmd):
+        """Run an incoming random VISA command."""
         if cmd.endswith("?"):
             self.log("Querying Instrument...")
             resp = self.instrument.query(cmd)
             self.log("Response received.")
             self.log(resp)
             return
-
         self.instrument.write(cmd)
 
     def start_measure(self):
-        self.threadMeasureBool = True
+        """Start the measurement by setting the flag."""
+        self.thread_measure_flag = True
 
     def stop_measure(self):
-        self.threadMeasureBool = False
+        """Stop the measurement by setting the flag."""
+        self.thread_measure_flag = False
 
     def start_record(self):
+        """Start recording by setting the flag."""
         self.reftime = dt.datetime.now()
-        self.threadRecordBool = True
+        self.thread_record_flag = True
 
     def stop_record(self):
-        self.threadRecordBool = False
+        """Stop recording by setting the flag."""
+        self.thread_record_flag = False
 
     def close(self):
+        """Ask the class to close."""
         print("Vector analyser asked to close.")
-        self.quitEvent.set()
-        self.threadMeasure.join()
+        self.quit_event.set()
+        self.thread_measure.join()
         if self.instrument:
             self.instrument.close()
         self.fp_marker.close()
         print("Vector analyser closed.")
 
 
-class DSA_815(VISAInstrument):
+class DSA815(VISAInstrument):
+    """Specific implementation for the Rigol DSA815."""
     def __init__(self, dfolder: pathlib.Path):
         super().__init__(dfolder=dfolder)
         self.frange = None
@@ -192,11 +210,11 @@ class DSA_815(VISAInstrument):
         """
         while True:
             # Exit if needed
-            if self.quitEvent and self.quitEvent.is_set():
+            if self.quit_event and self.quit_event.is_set():
                 print("Exiting VA measurement thread.")
                 break
 
-            if self.threadMeasureBool:
+            if self.thread_measure_flag:
 
                 # Read marker
                 mark = None
@@ -239,10 +257,10 @@ class DSA_815(VISAInstrument):
                     ))
 
                 # inform read
-                self.queueEvent.set()
+                self.queue_event.set()
 
                 # save if recording
-                if self.threadRecordBool:
+                if self.thread_record_flag:
 
                     # Save marker
                     if mark:
@@ -253,11 +271,13 @@ class DSA_815(VISAInstrument):
                         if (timenow - self.reftime).seconds > 60:
                             self.reftime = timenow
                             filename = str(timenow).replace(':', '') + ".csv"
-                            with open(self.f_traces / filename, 'w') as f:
-                                f.writelines(map(
-                                    lambda x: f"{x[0]},{x[1]}\n",
-                                    zip(self.frange, trace),
-                                ))
+                            with open(self.f_traces / filename, 'w', encoding="utf8") as f:
+                                f.writelines(
+                                    map(
+                                        lambda x: f"{x[0]},{x[1]}\n",
+                                        zip(self.frange, trace),
+                                    )
+                                )
 
             # Wait for required time
             time.sleep(0.5)
@@ -266,6 +286,6 @@ class DSA_815(VISAInstrument):
 if __name__ == '__main__':
 
     print("Direct control.")
-    va = DSA_815()
+    va = DSA815(dfolder="")
     va.connect()
     print(va.measure())

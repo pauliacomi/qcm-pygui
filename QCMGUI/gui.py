@@ -1,3 +1,5 @@
+"""The graphical user interface, built in TK."""
+
 import pathlib
 import sys
 import datetime as dt
@@ -17,6 +19,7 @@ PADY = 5
 
 
 class MainWindow(ttk.Frame):
+    """Class for the main program window."""
     def __init__(
         self,
         parent: tk.Tk,
@@ -31,8 +34,8 @@ class MainWindow(ttk.Frame):
         self.parent = parent
 
         self.queue = None  # event queue reference
-        self.queueEvent = None  # event queue trigger
-        self.quitEvent = None  # exit event
+        self.queue_event = None  # event queue trigger
+        self.quit_event = None  # exit event
 
         self.instruments = ("", )
         self.instrument = tk.StringVar(self)
@@ -48,7 +51,7 @@ class MainWindow(ttk.Frame):
     ##################
 
     def configure_window(self):
-
+        """Global window settings and shortcuts."""
         top = self.winfo_toplevel()
         top.geometry('700x800+100+100')
 
@@ -61,8 +64,8 @@ class MainWindow(ttk.Frame):
         self.pack(side='top', fill='both', expand=True)
 
     def create_layout(self):
-
-        # the layout is 4 rows:
+        """Initialize the window layout."""
+        # the layout is 5 rows:
         #    row 0 = menubar
         #    row 1 = control buttons
         #    row 2 = graphs etc - expandable
@@ -112,7 +115,9 @@ class MainWindow(ttk.Frame):
 
         self.edt_instr = tk.OptionMenu(self.ctrl_row, self.instrument, *self.instruments)
         self.edt_instr.configure(anchor='w')
-        self.edt_instr.grid(column=1, row=0, columnspan=2, sticky=tk.NW, padx=PADX, pady=PADY, ipadx=10)
+        self.edt_instr.grid(
+            column=1, row=0, columnspan=2, sticky=tk.NW, padx=PADX, pady=PADY, ipadx=10
+        )
 
         self.btn_connect = ttk.Button(self.ctrl_row)
         self.btn_connect["text"] = "Connect"
@@ -219,45 +224,54 @@ class MainWindow(ttk.Frame):
     ##################
 
     def about(self):
-        tkMessageBox.showinfo('About', "Record QCM over Ethernet using pyVISA \nPaul Iacomi 2021")
+        """Msgbox with info."""
+        tkMessageBox.showinfo(
+            'About',
+            "Record QCM over Ethernet using pyVISA \nPaul Iacomi 2021\nFor updates check https://github.com/pauliacomi/qcm-pygui"
+        )
 
     def close(self):
+        """Close program."""
         print("Window asked to close.")
         self.parent.quit()
         print("Window closed.")
 
     def signal_close(self):
+        """Send a signal to the queue to stop everything and close."""
         print("Ask shutdown.")
         self.config.save()
-        self.queueEvent.set()
-        self.quitEvent.set()
+        self.queue_event.set()
+        self.quit_event.set()
 
     ##################
     #### Control send
     ##################
 
     def send_command(self, *args, **kwargs):
+        """Send a general VISA command to the connected instrument."""
         cmd = self.ipt_visa.get()
         self.ipt_visa.delete(0, tk.END)
 
         self.queue.put(('ctrl', {'task': 'run_cmd', 'cmd': cmd}))
-        self.queueEvent.set()
+        self.queue_event.set()
 
         self.log(f"Command sent: \"{cmd}\".")
 
     def task_configure(self):
+        """Send a task to the controller that configures the instrument."""
         start = float(self.ipt_start.get())
         stop = float(self.ipt_stop.get())
         self.config.set('start', start)
         self.config.set('stop', stop)
         self.plot_mark.set_ylim(start, stop)
         self.queue.put(('ctrl', {'task': 'configure', 'start': start, 'stop': stop}))
-        self.queueEvent.set()
+        self.queue_event.set()
 
     def task_connect(self):
+        """Send a task to the controller that connects to the instrument."""
         instrument = self.instrument.get()
         self.queue.put(('ctrl', {'task': 'connect', 'instrument': instrument}))
-        self.queueEvent.set()
+        self.queue_event.set()
 
         self.log(f"Connecting to {instrument}.")
 
@@ -266,6 +280,7 @@ class MainWindow(ttk.Frame):
             self.log("Instrument set as default.")
 
     def task_toggle_read(self):
+        """Send a task to the controller that toggles whether the data is read or not."""
         if self.reading:
             self.queue.put(('ctrl', {'task': 'stop_measure'}))
             self.btn_acquire["text"] = "Read Start"
@@ -276,9 +291,10 @@ class MainWindow(ttk.Frame):
             self.btn_acquire["text"] = "Read Stop"
             self.reading = True
             self.log("Started reading.")
-        self.queueEvent.set()
+        self.queue_event.set()
 
     def task_toggle_record(self):
+        """Send a task to the controller that toggles whether the data is recorded or not."""
         if self.reading:
             if self.recording:
                 self.queue.put(('ctrl', {'task': 'stop_record'}))
@@ -290,18 +306,20 @@ class MainWindow(ttk.Frame):
                 self.btn_record["text"] = "Record Stop"
                 self.recording = True
                 self.log("Started recording.")
-            self.queueEvent.set()
+            self.queue_event.set()
 
         else:
             self.log("Nothing to record, start reading first.")
 
     def task_query_instruments(self):
+        """Send a task to the controller that queries all VISA instruments."""
         self.queue.put(('ctrl', {'task': 'query_instruments'}))
-        self.queueEvent.set()
+        self.queue_event.set()
 
     def task_update_charts(self):
+        """Send a task to the controller that updates the graph."""
         self.queue.put(('disp', {'task': 'update_chart'}))
-        self.queueEvent.set()
+        self.queue_event.set()
         self.after(1000, self.task_update_charts)
 
     ##################
@@ -309,19 +327,22 @@ class MainWindow(ttk.Frame):
     ##################
 
     def log(self, value=None):
+        """Log to the output text field."""
         time = dt.datetime.now().isoformat(sep=" ", timespec="seconds")
         self.output.configure(state='normal')
         self.output.insert(tk.END, f"{time} : {value}\n")
         self.output.configure(state='disabled')
 
     def set_trigger(self, queue=None, queue_event=None, quit_event=None):
+        """Start-up actions."""
         self.queue = queue
-        self.queueEvent = queue_event
-        self.quitEvent = quit_event
+        self.queue_event = queue_event
+        self.quit_event = quit_event
         self.task_query_instruments()
         self.task_update_charts()
 
     def set_instruments(self, instruments):
+        """Save instrument"""
         self.instruments = instruments
 
         # Reset var and delete all old options
@@ -330,16 +351,21 @@ class MainWindow(ttk.Frame):
 
         # Insert list of new options (tk._setit hooks them up to var)
         for choice in self.instruments:
-            self.edt_instr['menu'].add_command(label=choice, command=tk._setit(self.instrument, choice))
+            self.edt_instr['menu'].add_command(
+                label=choice, command=tk._setit(self.instrument, choice)
+            )
 
     def set_trace(self, x: Iterable = None, y: Iterable = None):
+        """Save incoming full trace."""
         self.plot_trace.set_data(x, y)
 
     def add_mark(self, value=None):
+        """Save incoming resonance frequency point."""
         x, y = value
         self.plot_mark.append_data(x, y)
 
     def update_chart(self):
+        """Update all charts."""
         self.plot_trace.update_plot()
         self.plot_mark.update_plot()
 
@@ -350,5 +376,5 @@ class MainWindow(ttk.Frame):
 
 if __name__ == '__main__':
     root = tk.Tk()
-    app = MainWindow(root, Config("../settings.cfg"))
+    app = MainWindow(root, Config("../settings.cfg"), wd=".")
     root.mainloop()
