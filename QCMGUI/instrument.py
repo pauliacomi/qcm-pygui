@@ -34,12 +34,7 @@ class VISAInstrument():
         # VISA init
         self.rm = None
         self.instrument = None
-        try:
-            self.rm = pyvisa.ResourceManager()
-        except OSError:
-            self.log(
-                "Could not find a VISA library. Please install a VI library (NI-VISA, R&S VISA, etc.)."
-            )
+        self.rm = pyvisa.ResourceManager()
 
         # setup measurement thread
         self.reftime = None
