@@ -7,21 +7,30 @@ format means that other types of vector analysers can also be adapted.
 
 ## Install
 
-Conda must be installed on the local computer. Use the `environment.yml` file to
-create a local Conda environment in the `./.venv` folder:
+**Prequisites:** 
+
+- [Anaconda/Miniconda](https://www.anaconda.com/products/distribution) must be installed on the local computer.
+- A version of a VISA driver, such as 
+  [NI VISA](https://www.ni.com/en-us/support/downloads/drivers/download.ni-visa.html) or 
+  [RS VISA](https://www.rohde-schwarz.com/us/applications/r-s-visa-application-note_56280-148812.html), etc. 
+
+**Option 1:** Double click on the script `install.bat`.
+Wait for script to finish.
+
+**Option 2:** Use the `environment.yml` file to
+create a local Conda environment in the `./.venv` folder from the command line:
 
     conda env create -f environment.yml -p ./venv
 
-You should be good to go by double clicking `QCMGUI.bat`.
-
-If for any reason you want to install everything manually:
+**Option 3:** If for any reason you want to install everything manually:
 
     conda create -p ./.venv python=3.9
     conda activate ./.venv
     conda install numpy nomkl matplotlib-base pyvisa
 
-
 It has been tested using python3.9, but other versions should work fine.
+
+You should be good to go by double clicking `QCMGUI.bat`.
 
 ## Operation
 
